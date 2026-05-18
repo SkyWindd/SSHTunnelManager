@@ -116,17 +116,29 @@ public static class DefaultVpsProvider
     public static string ResolveKeyPath()
     {
         var exeDir = Path.GetDirectoryName(Environment.ProcessPath) ?? ".";
-        var path   = Path.Combine(exeDir, "default_vps.ppk");
-        if (File.Exists(path)) return path;
+
+        // Linux: ưu tiên tìm .pem trước, sau đó .ppk
+        if (!OperatingSystem.IsWindows())
+        {
+            var pemPath = Path.Combine(exeDir, "default_vps.pem");
+            if (File.Exists(pemPath)) return pemPath;
+            if (File.Exists("default_vps.pem")) return "default_vps.pem";
+        }
+
+        // Windows: tìm .ppk
+        var ppkPath = Path.Combine(exeDir, "default_vps.ppk");
+        if (File.Exists(ppkPath)) return ppkPath;
         if (File.Exists("default_vps.ppk")) return "default_vps.ppk";
-        return "default_vps.ppk";
+
+        // Fallback theo OS
+        return OperatingSystem.IsWindows() ? "default_vps.ppk" : "default_vps.pem";
     }
 
     public static bool KeyFileExists()
         => KeyManager.DetectMode() != KeyMode.Missing;
 
     public static string KeyFileName => KeyManager.DetectMode() == KeyMode.Encrypted
-        ? "default_vps.ppk.enc" : "default_vps.ppk";
+        ? "default_vps.ppk.enc" : (OperatingSystem.IsWindows() ? "default_vps.ppk" : "default_vps.pem");
 
     public static void PrintInfo()
     {
@@ -237,31 +249,39 @@ public static class ConfigManager
             }
             else if (keyMode == KeyMode.Plain)
             {
-                // Lần đầu — có file .ppk gốc → hỏi đặt group password rồi tự mã hóa
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("\n  ℹ  Phát hiện file 'default_vps.ppk' chưa mã hóa.");
-                Console.WriteLine("     Hãy đặt Group Password để mã hóa key ngay bây giờ.");
-                Console.WriteLine("     Password này dùng chung cho cả nhóm.");
-                Console.ResetColor();
-
-                string password = SetGroupPasswordInteractive();
-                if (!string.IsNullOrEmpty(password))
+                // Linux: nếu có file .pem trực tiếp → dùng luôn, không cần mã hóa
+                if (!OperatingSystem.IsWindows())
                 {
-                    try
-                    {
-                        KeyManager.EncryptPlainKey(password);
-                        DefaultVpsProvider.UnlockWithPassword(password);
+                    Logger.Info("Dùng file key .pem trực tiếp.");
+                }
+                else
+                {
+                    // Windows: có file .ppk gốc → hỏi đặt group password rồi tự mã hóa
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("\n  ℹ  Phát hiện file 'default_vps.ppk' chưa mã hóa.");
+                    Console.WriteLine("     Hãy đặt Group Password để mã hóa key ngay bây giờ.");
+                    Console.WriteLine("     Password này dùng chung cho cả nhóm.");
+                    Console.ResetColor();
 
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("\n  ✔  Key đã mã hóa và mở khóa thành công!");
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine("  ⚠  Hãy XÓA file 'default_vps.ppk' gốc sau khi setup xong.");
-                        Console.WriteLine("     Chỉ giữ lại 'default_vps.ppk.enc' — file này an toàn khi upload GitHub.");
-                        Console.ResetColor();
-                    }
-                    catch (Exception ex)
+                    string password = SetGroupPasswordInteractive();
+                    if (!string.IsNullOrEmpty(password))
                     {
-                        Logger.Error($"Mã hóa thất bại: {ex.Message}");
+                        try
+                        {
+                            KeyManager.EncryptPlainKey(password);
+                            DefaultVpsProvider.UnlockWithPassword(password);
+
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine("\n  ✔  Key đã mã hóa và mở khóa thành công!");
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("  ⚠  Hãy XÓA file 'default_vps.ppk' gốc sau khi setup xong.");
+                            Console.WriteLine("     Chỉ giữ lại 'default_vps.ppk.enc' — file này an toàn khi upload GitHub.");
+                            Console.ResetColor();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Mã hóa thất bại: {ex.Message}");
+                        }
                     }
                 }
             }

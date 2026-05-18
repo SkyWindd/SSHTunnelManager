@@ -27,6 +27,14 @@ public static class KeyManager
     public static KeyMode DetectMode()
     {
         var dir = AppDir();
+
+        // Linux: ưu tiên file .pem trước — nếu có .pem thì dùng luôn, không cần decrypt .enc
+        if (!OperatingSystem.IsWindows())
+        {
+            if (File.Exists(Path.Combine(dir, "default_vps.pem"))) return KeyMode.Plain;
+        }
+
+        // Windows (hoặc Linux không có .pem): dùng .enc hoặc .ppk
         if (File.Exists(Path.Combine(dir, EncryptedFile))) return KeyMode.Encrypted;
         if (File.Exists(Path.Combine(dir, PlainFile)))     return KeyMode.Plain;
         return KeyMode.Missing;
@@ -120,11 +128,28 @@ public static class KeyManager
     /// </summary>
     public static string WriteTempKey(byte[] keyBytes)
     {
-        var path = Path.Combine(Path.GetTempPath(), $"stm_{Guid.NewGuid():N}.ppk");
+        // Linux dùng .pem, Windows dùng .ppk
+        var ext  = OperatingSystem.IsWindows() ? "ppk" : "pem";
+        var path = Path.Combine(Path.GetTempPath(), $"stm_{Guid.NewGuid():N}.{ext}");
         File.WriteAllBytes(path, keyBytes);
         // Ẩn file tạm (chỉ hỗ trợ trên Windows, bỏ qua trên Linux)
         if (OperatingSystem.IsWindows())
             File.SetAttributes(path, FileAttributes.Hidden | FileAttributes.Temporary);
+        // Linux: đảm bảo permission 600
+        else
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName              = "chmod",
+                    Arguments             = $"600 \"{path}\"",
+                    UseShellExecute       = false,
+                    CreateNoWindow        = true,
+                })?.WaitForExit(1000);
+            }
+            catch { /* ignore */ }
+        }
         return path;
     }
 
@@ -197,6 +222,9 @@ public static class KeyManager
         Console.Write($"\n  Key status: ");
         Console.ResetColor();
 
+        // Tên file key thực tế theo OS
+        var plainFileName = OperatingSystem.IsWindows() ? PlainFile : "default_vps.pem";
+
         switch (mode)
         {
             case KeyMode.Encrypted:
@@ -205,14 +233,14 @@ public static class KeyManager
                 break;
             case KeyMode.Plain:
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"⚠  '{PlainFile}' (chưa mã hóa — KHÔNG nên upload GitHub)");
+                Console.WriteLine($"⚠  '{plainFileName}' (chưa mã hóa — KHÔNG nên upload GitHub)");
                 Console.WriteLine("     Dùng menu [8] Setup → mã hóa key để bảo vệ.");
                 Console.ResetColor();
                 break;
             case KeyMode.Missing:
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"✘  Không tìm thấy '{PlainFile}' hoặc '{EncryptedFile}'");
-                Console.WriteLine("     Đặt file .ppk vào cùng thư mục với SshTunnelManager.exe");
+                Console.WriteLine($"✘  Không tìm thấy '{plainFileName}' hoặc '{EncryptedFile}'");
+                Console.WriteLine($"     Đặt file {plainFileName} vào cùng thư mục với SshTunnelManager");
                 Console.ResetColor();
                 break;
         }

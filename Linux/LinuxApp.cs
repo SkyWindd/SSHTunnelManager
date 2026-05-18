@@ -66,19 +66,21 @@ public static class LinuxApp
         {
             var keyMode = KeyManager.DetectMode();
             if (keyMode == KeyMode.Encrypted)
+            {
+                // Chỉ hỏi password khi KHÔNG có file .pem trực tiếp
+                // (DetectMode đã ưu tiên .pem trước .enc trên Linux)
                 UnlockKeyInteractive();
+            }
             else if (keyMode == KeyMode.Plain)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("\n  ⚠  File key chưa mã hóa (default_vps.pem).");
-                Console.WriteLine("     Gợi ý: chạy './SshTunnelManager --encrypt-key' để mã hóa.");
-                Console.ResetColor();
+                // Có file .pem trực tiếp — dùng luôn, không cần unlock
+                Logger.Info("Dùng file key .pem trực tiếp.");
             }
             else if (keyMode == KeyMode.Missing)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("\n  ✘ Không tìm thấy file key VPS.");
-                Console.WriteLine("    Cần có 'default_vps.pem' hoặc 'default_vps.pem.enc'");
+                Console.WriteLine("    Cần có 'default_vps.pem' hoặc 'default_vps.ppk.enc'");
                 Console.ResetColor();
             }
         }
