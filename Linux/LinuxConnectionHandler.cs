@@ -12,7 +12,8 @@ public static class LinuxConnectionHandler
     // ---- Launch helpers ----
 
     /// <summary>
-    /// Linux không dùng PuTTY — in ra ssh command để user tự chạy trong terminal.
+    /// Linux không dùng PuTTY — hỏi username rồi chạy ssh ngay trong terminal hiện tại.
+    /// Không cố mở terminal mới (không khả thi trong WSL2/CLI).
     /// </summary>
     public static void PrintSshCommand(AppConfig cfg)
     {
@@ -20,22 +21,49 @@ public static class LinuxConnectionHandler
         if (ssh == null) { Logger.Warn("No SSH tunnel configured."); return; }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("\n  Chạy lệnh sau trong terminal để SSH vào Máy B:");
+        Console.WriteLine("\n  Kết nối SSH vào Máy B qua tunnel:");
         Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"\n    ssh <username_may_b>@127.0.0.1 -p {ssh.LocalPort}");
-        Console.ResetColor();
-        Console.WriteLine("\n  Thay <username_may_b> bằng username thực của Máy B.");
 
-        // Hỏi có muốn tự động mở terminal và chạy không
-        Console.Write("\n  Tự động mở terminal và chạy lệnh? (y/N): ");
-        if (Console.ReadLine()?.Trim().ToLower() != "y") return;
-
-        Console.Write("  Nhập username Máy B: ");
+        Console.Write("  Nhập username Máy B (Enter để hủy): ");
         var username = Console.ReadLine()?.Trim();
-        if (string.IsNullOrEmpty(username)) { Logger.Warn("Username không được để trống."); return; }
+        if (string.IsNullOrEmpty(username))
+        {
+            Console.WriteLine("  Đã hủy. Lệnh để tự chạy:");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine($"    ssh <username>@127.0.0.1 -p {ssh.LocalPort}");
+            Console.ResetColor();
+            return;
+        }
 
-        LaunchSshInTerminal(username, ssh.LocalPort);
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"\n  Đang kết nối: ssh {username}@127.0.0.1 -p {ssh.LocalPort}");
+        Console.WriteLine("  (Nhấn Ctrl+D hoặc gõ 'exit' để quay lại app)");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        // Chạy ssh ngay trong terminal hiện tại — không cần mở terminal mới
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName               = "ssh",
+                Arguments              = $"{username}@127.0.0.1 -p {ssh.LocalPort}",
+                UseShellExecute        = false,
+                RedirectStandardInput  = false,
+                RedirectStandardOutput = false,
+                RedirectStandardError  = false,
+            };
+            var p = Process.Start(psi);
+            p?.WaitForExit(); // Chờ ssh thoát → quay lại menu app
+            Console.WriteLine("\n  SSH session đã kết thúc. Quay lại menu...");
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Không thể chạy ssh: {ex.Message}");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine($"  Tự chạy lệnh: ssh {username}@127.0.0.1 -p {ssh.LocalPort}");
+            Console.ResetColor();
+        }
     }
 
     /// <summary>
@@ -62,46 +90,6 @@ public static class LinuxConnectionHandler
         Console.ResetColor();
         Console.WriteLine($"\n  Lưu ý: Máy B phải bật Remote Desktop (Windows Pro/Enterprise).");
         Console.WriteLine($"         Nếu Máy B dùng Windows Home → dùng VNC thay thế.");
-    }
-
-    /// <summary>
-    /// Mở terminal và chạy ssh command tự động.
-    /// Thử lần lượt các terminal phổ biến trên Ubuntu.
-    /// </summary>
-    private static void LaunchSshInTerminal(string username, int port)
-    {
-        var sshCmd = $"ssh {username}@127.0.0.1 -p {port}";
-
-        // Danh sách terminal phổ biến trên Ubuntu, thử theo thứ tự
-        var terminals = new[]
-        {
-            ("gnome-terminal", $"-- bash -c \"{sshCmd}; exec bash\""),
-            ("xterm",          $"-e \"{sshCmd}\""),
-            ("konsole",        $"-e bash -c \"{sshCmd}; exec bash\""),
-            ("xfce4-terminal", $"-e \"{sshCmd}\""),
-            ("lxterminal",     $"-e \"{sshCmd}\""),
-        };
-
-        foreach (var (terminal, args) in terminals)
-        {
-            try
-            {
-                var p = Process.Start(new ProcessStartInfo
-                {
-                    FileName        = terminal,
-                    Arguments       = args,
-                    UseShellExecute = false,
-                });
-                if (p != null)
-                {
-                    Logger.Success($"Đã mở {terminal} với lệnh: {sshCmd}");
-                    return;
-                }
-            }
-            catch { /* terminal này không có, thử cái tiếp theo */ }
-        }
-
-        Logger.Warn("Không tìm thấy terminal. Hãy tự mở terminal và chạy lệnh trên.");
     }
 
     // ---- Custom port management (giữ nguyên logic từ Windows) ----
