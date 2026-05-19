@@ -184,12 +184,15 @@ public static class LinuxConnectionHandler
         Console.WriteLine("  ❓ XỬ LÝ SỰ CỐ THƯỜNG GẶP (Linux)");
         Console.WriteLine("  " + new string('─', 65));
         Console.ResetColor();
-        Console.WriteLine("  • Tunnel DOWN liên tục    → Kiểm tra internet, VPS có hoạt động không");
-        Console.WriteLine("  • 'Connection refused'    → Máy B chưa bật OpenSSH Server");
-        Console.WriteLine("  • 'Network error'         → Tunnel chưa UP, chờ vài giây rồi thử lại");
-        Console.WriteLine("  • 'Permission denied'     → Sai username/password hoặc sai file .pem");
-        Console.WriteLine("  • 'Bad permissions'       → Chạy: chmod 600 default_vps.pem");
-        Console.WriteLine("  • 'Host key verification' → Chạy: ssh-keygen -R 127.0.0.1");
+        Console.WriteLine("  • Tunnel DOWN liên tục         → Kiểm tra internet, VPS có hoạt động không");
+        Console.WriteLine("  • 'connect_to localhost failed' → Máy B chưa bật SSH Server:");
+        Console.WriteLine("      Linux:   sudo service ssh start");
+        Console.WriteLine("      Windows: Start-Service sshd (PowerShell Admin)");
+        Console.WriteLine("  • 'Connection refused'          → Tunnel chưa UP, chờ vài giây rồi thử lại");
+        Console.WriteLine("  • 'Permission denied'           → Sai username/password hoặc sai file .pem");
+        Console.WriteLine("  • 'Bad permissions'             → Chạy: chmod 600 default_vps.pem");
+        Console.WriteLine("  • 'Host key verification'       → Chạy: ssh-keygen -R 127.0.0.1");
+        Console.WriteLine("  • CRLF error khi chạy .sh      → Chạy: sed -i 's/\r//' run.sh build.sh");
         Console.WriteLine();
 
         Console.ForegroundColor = ConsoleColor.DarkGray;

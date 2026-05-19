@@ -3,6 +3,15 @@
 #    SSH Tunnel Manager -- Build Script (Linux/Ubuntu)
 # ===========================================================
 
+# Auto-fix CRLF line endings (khi file được tạo trên Windows)
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+if file "$SCRIPT_PATH" | grep -q CRLF; then
+    sed -i 's/\r//' "$SCRIPT_PATH"
+    sed -i 's/\r//' "$(dirname "$SCRIPT_PATH")/run.sh" 2>/dev/null
+    echo "  [FIX] Da convert CRLF -> LF, chay lai script..."
+    exec bash "$SCRIPT_PATH" "$@"
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -98,7 +107,7 @@ else
     echo -e "${YELLOW}  [!] THIEU: default_vps.pem chua co trong publish/linux/${NC}"
     echo "      Copy file key vao:"
     echo "      cp /duong/dan/default_vps.pem publish/linux/"
-    echo "      chmod 600 publish/linux/default_vps.pem"    
+    echo "      chmod 600 publish/linux/default_vps.pem"
 fi
 
 if command -v ssh &> /dev/null; then

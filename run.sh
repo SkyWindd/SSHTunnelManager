@@ -4,6 +4,14 @@
 #    User chỉ cần: chmod +x run.sh && ./run.sh
 # ===========================================================
 
+# Auto-fix CRLF line endings (khi file được tạo trên Windows)
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+if file "$SCRIPT_PATH" | grep -q CRLF; then
+    sed -i 's/\r//' "$SCRIPT_PATH"
+    echo "  [FIX] Da convert CRLF -> LF, chay lai script..."
+    exec bash "$SCRIPT_PATH" "$@"
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
