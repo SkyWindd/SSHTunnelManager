@@ -1,0 +1,9 @@
+# Giữ nguyên LF cho file shell script — KHÔNG để Windows convert sang CRLF
+*.sh    text eol=lf
+*.pem   binary
+*.ppk   binary
+*.enc   binary
+
+# Windows files dùng CRLF bình thường
+*.bat   text eol=crlf
+*.cmd   text eol=crlf

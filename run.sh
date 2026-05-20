@@ -4,22 +4,38 @@
 #    User chỉ cần: chmod +x run.sh && ./run.sh
 # ===========================================================
 
-# Auto-fix CRLF line endings (khi file được tạo trên Windows)
-SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-if file "$SCRIPT_PATH" | grep -q CRLF; then
-    sed -i 's/\r//' "$SCRIPT_PATH"
-    echo "  [FIX] Da convert CRLF -> LF, chay lai script..."
-    exec bash "$SCRIPT_PATH" "$@"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP="$SCRIPT_DIR/SshTunnelManager"
+PEM="$SCRIPT_DIR/default_vps.pem"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP="$SCRIPT_DIR/SshTunnelManager"
-PEM="$SCRIPT_DIR/default_vps.pem"
+# ── Tự động bật SSH Server nếu chưa chạy ─────────────────
+ensure_ssh_server() {
+    # Kiểm tra openssh-server đã cài chưa
+    if ! command -v sshd &>/dev/null; then
+        echo -e "${YELLOW}  [SSH] Chua cai openssh-server, dang cai...${NC}"
+        sudo apt-get install -y openssh-server -qq
+    fi
+
+    # Kiểm tra SSH đang chạy chưa
+    if ! sudo service ssh status 2>/dev/null | grep -q "running"; then
+        echo -e "${YELLOW}  [SSH] SSH server chua chay, dang bat...${NC}"
+        sudo service ssh start
+        sleep 1
+        if sudo service ssh status 2>/dev/null | grep -q "running"; then
+            echo -e "${GREEN}  [SSH] SSH server da bat thanh cong${NC}"
+        else
+            echo -e "${YELLOW}  [SSH] Khong bat duoc SSH server tu dong.${NC}"
+            echo "        Chay thu cong: sudo service ssh start"
+        fi
+    fi
+}
+
+ensure_ssh_server
 
 # ── Kiểm tra binary ───────────────────────────────────────
 if [ ! -f "$APP" ]; then

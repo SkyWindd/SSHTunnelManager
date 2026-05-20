@@ -2,15 +2,8 @@
 # ===========================================================
 #    SSH Tunnel Manager -- Build Script (Linux/Ubuntu)
 # ===========================================================
-
-# Auto-fix CRLF line endings (khi file được tạo trên Windows)
-SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-if file "$SCRIPT_PATH" | grep -q CRLF; then
-    sed -i 's/\r//' "$SCRIPT_PATH"
-    sed -i 's/\r//' "$(dirname "$SCRIPT_PATH")/run.sh" 2>/dev/null
-    echo "  [FIX] Da convert CRLF -> LF, chay lai script..."
-    exec bash "$SCRIPT_PATH" "$@"
-fi
+# Neu bi loi "^M bad interpreter", chay lenh nay truoc:
+#   sed -i 's/\r//' build.sh run.sh && chmod +x build.sh run.sh
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
